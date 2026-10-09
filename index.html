@@ -3,295 +3,313 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>網頁版 Web TM 影像訓練平台 (Teachable Machine)</title>
-    <!-- 載入 TensorFlow.js 核心與預訓練模型 -->
+    <title>動態自訂版 - Web 影像訓練平台</title>
+    <!-- 載入 TensorFlow.js 與模型 -->
     <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs"></script>
     <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/mobilenet"></script>
     <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/knn-classifier"></script>
     <style>
         body { 
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
-            max-width: 800px; 
+            max-width: 900px; 
             margin: 30px auto; 
             text-align: center; 
-            background-color: #f4f7f6;
-            color: #333;
+            background-color: #f8f9fa;
+            color: #343a40;
         }
-        h2 { color: #2c3e50; }
-        .camera-container {
-            position: relative;
-            display: inline-block;
-            margin-bottom: 20px;
+        .main-container {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 20px;
+            justify-content: center;
+            align-items: flex-start;
+        }
+        .camera-section {
+            flex: 1;
+            min-width: 300px;
+            max-width: 400px;
         }
         video { 
             width: 100%; 
-            max-width: 500px; 
-            border: 4px solid #fff; 
-            border-radius: 12px; 
-            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
-            transform: scaleX(-1); /* 產生鏡像效果，操作起來更自然 */
+            border: 3px solid #dee2e6; 
+            border-radius: 8px; 
+            background: #000;
+            transform: scaleX(-1);
         }
-        .controls { 
-            display: flex; 
-            justify-content: center; 
-            gap: 20px; 
-            margin: 20px 0; 
-            flex-wrap: wrap;
+        .classes-section {
+            flex: 1;
+            min-width: 300px;
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
         }
         .class-card {
             background: white;
-            padding: 20px;
-            border-radius: 10px;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.05);
-            min-width: 200px;
+            padding: 15px;
+            border-radius: 8px;
+            border: 1px solid #dee2e6;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        .class-header {
+            display: flex;
+            gap: 10px;
+        }
+        input[type="text"] {
+            flex: 1;
+            padding: 8px;
+            font-size: 16px;
+            border: 1px solid #ced4da;
+            border-radius: 4px;
         }
         button { 
-            padding: 12px 24px; 
-            font-size: 16px; 
-            font-weight: bold;
+            padding: 10px 15px; 
+            font-size: 15px; 
+            font-weight: 500;
             cursor: pointer; 
             border: none; 
-            border-radius: 6px; 
-            transition: all 0.2s;
+            border-radius: 4px; 
+            transition: 0.2s;
         }
-        .btn-class { background: #3498db; color: white; width: 100%; margin-bottom: 10px;}
-        .btn-class:active:not(:disabled) { background: #2980b9; transform: scale(0.98); }
-        .btn-class:disabled { background: #bdc3c7; cursor: not-allowed; }
+        .btn-train { background: #0d6efd; color: white; }
+        .btn-train:active:not(:disabled) { background: #0b5ed7; }
+        .btn-train:disabled { background: #6c757d; cursor: not-allowed; }
+        .btn-add { background: #198754; color: white; width: 100%; margin-top: 10px; padding: 12px;}
+        .btn-add:hover { background: #157347; }
         
-        #result-container {
-            background: #2ecc71;
+        .count-badge {
+            background: #e9ecef;
+            padding: 4px 8px;
+            border-radius: 12px;
+            font-size: 13px;
+            color: #495057;
+            align-self: flex-start;
+        }
+        
+        #result-box {
+            background: #212529;
             color: white;
-            padding: 20px;
-            border-radius: 10px;
-            margin-top: 20px;
+            padding: 15px;
+            border-radius: 8px;
+            margin-top: 15px;
+            text-align: left;
             display: none;
-            box-shadow: 0 4px 12px rgba(46, 204, 113, 0.3);
         }
-        #result { font-size: 28px; font-weight: bold; margin-bottom: 5px; }
-        #confidence { font-size: 16px; opacity: 0.9; }
-        
-        .status-badge { 
-            display: inline-block;
-            background: #f39c12; 
-            color: white; 
-            padding: 8px 16px;
-            border-radius: 20px;
-            font-weight: bold;
-            margin-bottom: 20px;
+        #result-name { font-size: 24px; font-weight: bold; color: #20c997; }
+        .progress-bar-bg {
+            width: 100%; background: #495057; height: 10px; border-radius: 5px; margin-top: 5px; overflow: hidden;
         }
-        .count-text { color: #7f8c8d; font-size: 14px; }
+        .progress-bar-fill {
+            height: 100%; background: #20c997; width: 0%; transition: width 0.1s;
+        }
+        .status { padding: 10px; margin-bottom: 20px; background: #fff3cd; color: #856404; border-radius: 5px; }
     </style>
 </head>
 <body>
 
-    <h2>簡易版影像訓練平台</h2>
-    <div class="status-badge" id="status">系統初始化中，請稍候...</div>
+    <h2>動態自訂版 Teachable Machine</h2>
+    <div class="status" id="status">系統初始化中，載入模型約需數秒...</div>
     
-    <div class="camera-container">
-        <!-- 攝影機畫面 (autoplay 屬性確保畫面會自動播放) -->
-        <video id="webcam" autoplay playsinline muted></video>
-    </div>
-
-    <div class="controls">
-        <!-- 類別 A 控制區 -->
-        <div class="class-card">
-            <h3>類別 A (例如: 沒戴眼鏡)</h3>
-            <button id="class-a" class="btn-class" disabled>長按收集影像</button>
-            <div class="count-text" id="count-a">已收集: 0 張</div>
+    <div class="main-container">
+        <!-- 左側：攝影機與結果 -->
+        <div class="camera-section">
+            <video id="webcam" autoplay playsinline muted></video>
+            
+            <div id="result-box">
+                <div>預測結果：</div>
+                <div id="result-name">尚未開始</div>
+                <div style="font-size: 14px; color: #adb5bd; margin-top: 5px;">信心指數：<span id="confidence-text">0%</span></div>
+                <div class="progress-bar-bg">
+                    <div class="progress-bar-fill" id="confidence-bar"></div>
+                </div>
+            </div>
         </div>
 
-        <!-- 類別 B 控制區 -->
-        <div class="class-card">
-            <h3>類別 B (例如: 有戴眼鏡)</h3>
-            <button id="class-b" class="btn-class" disabled>長按收集影像</button>
-            <div class="count-text" id="count-b">已收集: 0 張</div>
+        <!-- 右側：動態分類清單 -->
+        <div class="classes-section">
+            <div id="classes-container">
+                <!-- 分類卡片將由 JS 動態產生在這裡 -->
+            </div>
+            <button class="btn-add" id="btn-add-class">+ 新增訓練分類</button>
         </div>
-    </div>
-
-    <!-- 預測結果顯示區 -->
-    <div id="result-container">
-        <div id="result">準備預測...</div>
-        <div id="confidence"></div>
     </div>
 
     <script>
-        // 取得 HTML 元素
         const webcamElement = document.getElementById('webcam');
         const statusElement = document.getElementById('status');
-        const resultContainer = document.getElementById('result-container');
-        const resultText = document.getElementById('result');
-        const confidenceText = document.getElementById('confidence');
+        const classesContainer = document.getElementById('classes-container');
+        const btnAddClass = document.getElementById('btn-add-class');
         
-        const btnA = document.getElementById('class-a');
-        const btnB = document.getElementById('class-b');
-        const countA = document.getElementById('count-a');
-        const countB = document.getElementById('count-b');
+        const resultBox = document.getElementById('result-box');
+        const resultName = document.getElementById('result-name');
+        const confidenceText = document.getElementById('confidence-text');
+        const confidenceBar = document.getElementById('confidence-bar');
 
-        // AI 相關變數
         let classifier;
         let mobilenetModule;
         let isPredicting = false;
         
-        // 類別名稱對應
-        const classNames = ['類別 A', '類別 B'];
+        // 用來追蹤目前所有的分類狀態
+        let classData = [];
+        let classIdCounter = 0;
 
-        // 1. 初始化應用程式
+        // 1. 初始化
         async function initApp() {
             try {
-                // 建立 KNN 分類器
                 classifier = knnClassifier.create();
-                
-                statusElement.innerText = '正在下載預訓練模型 (可能需要幾秒鐘)...';
-                statusElement.style.background = '#f39c12';
-                
-                // 載入 MobileNet
                 mobilenetModule = await mobilenet.load();
-                
                 statusElement.innerText = '請允許瀏覽器存取攝影機權限';
+                statusElement.style.background = '#d1ecf1';
+                statusElement.style.color = '#0c5460';
                 
-                // 啟動 WebCam
                 await setupWebcam();
+                statusElement.style.display = 'none'; // 隱藏狀態列
                 
-                statusElement.innerText = '系統準備就緒！請長按按鈕收集資料';
-                statusElement.style.background = '#3498db';
-                
-                // 啟用按鈕
-                btnA.disabled = false;
-                btnB.disabled = false;
-
-                // 綁定收集事件 (0 代表類別A, 1 代表類別B)
-                setupCollection(btnA, countA, 0);
-                setupCollection(btnB, countB, 1);
+                // 預設建立兩個分類
+                addNewClassCard("類別 1");
+                addNewClassCard("類別 2");
                 
             } catch (error) {
-                console.error(error);
-                statusElement.innerText = '發生錯誤: ' + error;
-                statusElement.style.background = '#e74c3c';
+                statusElement.innerText = '錯誤: ' + error;
+                statusElement.style.background = '#f8d7da';
             }
         }
 
-        // 2. 設定攝影機串流
+        // 2. WebCam 設定
         async function setupWebcam() {
             return new Promise((resolve, reject) => {
-                // 處理不同瀏覽器的 API 差異
                 const navigatorAny = navigator;
-                navigator.getUserMedia = navigator.getUserMedia || 
-                                       navigatorAny.webkitGetUserMedia || 
-                                       navigatorAny.mozGetUserMedia || 
-                                       navigatorAny.msGetUserMedia;
-                
+                navigator.getUserMedia = navigator.getUserMedia || navigatorAny.webkitGetUserMedia || navigatorAny.mozGetUserMedia || navigatorAny.msGetUserMedia;
                 if (navigator.getUserMedia) {
-                    navigator.getUserMedia(
-                        { video: { width: 400, height: 300 } }, // 要求視訊
-                        stream => {
-                            // 將串流綁定到 video 元素
-                            webcamElement.srcObject = stream;
-                            // 等待視訊載入完成
-                            webcamElement.addEventListener('loadeddata', () => resolve(), false);
-                        },
-                        error => reject(error)
-                    );
-                } else {
-                    reject(new Error("您的瀏覽器不支援 WebCam API"));
-                }
+                    navigator.getUserMedia({ video: true }, stream => {
+                        webcamElement.srcObject = stream;
+                        webcamElement.addEventListener('loadeddata', () => resolve(), false);
+                    }, error => reject(error));
+                } else reject(new Error("不支援 WebCam"));
             });
         }
 
-        // 3. 設定影像收集邏輯
+        // 3. 動態產生分類 UI 卡片
+        function addNewClassCard(defaultName = "") {
+            const currentId = classIdCounter++;
+            const defaultClassName = defaultName || `自訂類別 ${currentId + 1}`;
+            
+            // 記錄到資料陣列中
+            classData.push({ id: currentId, name: defaultClassName, count: 0 });
+
+            // 建立 UI 元素
+            const card = document.createElement('div');
+            card.className = 'class-card';
+            card.innerHTML = `
+                <div class="class-header">
+                    <input type="text" id="input-name-${currentId}" value="${defaultClassName}" placeholder="輸入分類名稱...">
+                </div>
+                <button class="btn-train" id="btn-train-${currentId}">長按收集影像</button>
+                <div class="count-badge" id="count-${currentId}">0 張影像</div>
+            `;
+            classesContainer.appendChild(card);
+
+            // 綁定輸入框改變事件
+            const inputEl = document.getElementById(`input-name-${currentId}`);
+            inputEl.addEventListener('input', (e) => {
+                const classObj = classData.find(c => c.id === currentId);
+                if (classObj) classObj.name = e.target.value || "未命名";
+            });
+
+            // 綁定按鈕收集事件
+            const btnEl = document.getElementById(`btn-train-${currentId}`);
+            const countEl = document.getElementById(`count-${currentId}`);
+            setupCollection(btnEl, countEl, currentId);
+        }
+
+        // 4. 影像收集邏輯
         function setupCollection(button, countElement, classId) {
             let captureInterval;
-
-            // 當滑鼠按下時，開始連續收集
+            
             const startCapturing = () => {
                 button.innerText = '收集ing...';
-                button.style.background = '#e67e22';
+                button.style.background = '#ffc107';
+                button.style.color = 'black';
                 
-                // 每 100 毫秒擷取一張照片
                 captureInterval = setInterval(() => {
-                    captureFrame(classId);
-                    // 更新 UI 上的計數
-                    const count = classifier.getClassExampleCount()[classId] || 0;
-                    countElement.innerText = `已收集: ${count} 張`;
+                    // 擷取特徵並加入分類器
+                    const img = tf.browser.fromPixels(webcamElement);
+                    const activation = mobilenetModule.infer(img, 'conv_preds');
+                    classifier.addExample(activation, classId);
+                    img.dispose();
+                    
+                    // 更新計數
+                    const classObj = classData.find(c => c.id === classId);
+                    if (classObj) {
+                        classObj.count++;
+                        countElement.innerText = `${classObj.count} 張影像`;
+                    }
                 }, 100);
             };
 
-            // 當滑鼠鬆開時，停止收集並啟動預測
             const stopCapturing = () => {
                 if (captureInterval) {
                     clearInterval(captureInterval);
                     captureInterval = null;
                     button.innerText = '長按收集影像';
-                    button.style.background = '#3498db';
+                    button.style.background = '#0d6efd';
+                    button.style.color = 'white';
                     
-                    // 只要有收集到資料，且還沒開始預測，就啟動預測迴圈
                     if (classifier.getNumClasses() > 0 && !isPredicting) {
                         isPredicting = true;
-                        resultContainer.style.display = 'block'; // 顯示預測結果區塊
+                        resultBox.style.display = 'block';
                         predictLoop();
                     }
                 }
             };
 
-            // 綁定滑鼠與觸控事件
             button.addEventListener('mousedown', startCapturing);
             button.addEventListener('mouseup', stopCapturing);
-            button.addEventListener('mouseleave', stopCapturing); // 移出按鈕範圍也停止
-            
-            // 支援手機觸控
-            button.addEventListener('touchstart', (e) => { e.preventDefault(); startCapturing(); });
-            button.addEventListener('touchend', stopCapturing);
-        }
-
-        // 4. 擷取單一畫面並加入分類器
-        function captureFrame(classId) {
-            // 從視訊元素讀取影像作為 Tensor
-            const img = tf.browser.fromPixels(webcamElement);
-            // 透過 MobileNet 萃取特徵向量 (不直接做分類)
-            const activation = mobilenetModule.infer(img, 'conv_preds');
-            // 將特徵與自訂標籤加入 KNN 模型
-            classifier.addExample(activation, classId);
-            // 釋放記憶體，避免瀏覽器崩潰
-            img.dispose();
+            button.addEventListener('mouseleave', stopCapturing);
         }
 
         // 5. 即時預測迴圈
         async function predictLoop() {
-            // 確保分類器裡有資料
             if (classifier.getNumClasses() > 0) {
-                // 從 Webcam 抓取當前畫面
                 const img = tf.browser.fromPixels(webcamElement);
-                // 萃取特徵
                 const activation = mobilenetModule.infer(img, 'conv_preds');
                 
                 try {
-                    // 使用 KNN 預測這個特徵最像哪個類別
                     const result = await classifier.predictClass(activation);
                     
-                    // 取得最高機率的類別索引 (0 或 1)
-                    const classId = result.label;
-                    // 取得該類別的信心指數 (0.0 ~ 1.0)
-                    const confidence = result.confidences[classId];
+                    // result.label 回傳的是我們當初傳入的 classId (字串型態)
+                    const predictedClassId = parseInt(result.label);
+                    const classObj = classData.find(c => c.id === predictedClassId);
                     
-                    // 更新 UI
-                    resultText.innerText = classNames[classId];
-                    confidenceText.innerText = `信心指數: ${(confidence * 100).toFixed(1)}%`;
-                    
-                    // 改變背景顏色以區分結果
-                    resultContainer.style.background = classId === "0" ? '#9b59b6' : '#e67e22';
-
+                    if (classObj) {
+                        const confidenceValue = result.confidences[predictedClassId];
+                        const confPercent = (confidenceValue * 100).toFixed(0);
+                        
+                        // 更新 UI
+                        resultName.innerText = classObj.name;
+                        confidenceText.innerText = `${confPercent}%`;
+                        confidenceBar.style.width = `${confPercent}%`;
+                        
+                        // 顏色變化：信心太低時變黃色
+                        confidenceBar.style.background = confidenceValue > 0.7 ? '#20c997' : '#ffc107';
+                    }
                 } catch (err) {
-                    console.error("預測失敗", err);
+                    console.error(err);
                 } finally {
-                    // 預測完成後，必須釋放記憶體
                     img.dispose();
                 }
             }
-            
-            // 透過 requestAnimationFrame 不斷循環呼叫自己，達成高更新率的即時預測
             requestAnimationFrame(predictLoop);
         }
 
-        // 啟動主程式
+        // 綁定新增分類按鈕
+        btnAddClass.addEventListener('click', () => {
+            addNewClassCard();
+        });
+
+        // 啟動
         initApp();
     </script>
 </body>
