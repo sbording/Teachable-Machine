@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Web 影像訓練平台 (70/30 比例版)</title>
+    <title>Web 影像訓練平台 (60/40 比例版)</title>
     <!-- 載入 TensorFlow.js 與預訓練模型 -->
     <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs"></script>
     <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/mobilenet"></script>
@@ -11,7 +11,7 @@
     <style>
         body { 
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
-            max-width: 900px; 
+            max-width: 1400px; 
             margin: 30px auto; 
             text-align: center; 
             background-color: #f8f9fa;
@@ -26,10 +26,10 @@
             align-items: flex-start;
         }
         .camera-section {
-            /* 設定相機區塊佔據約 70% 空間 (預留間距設為 68%) */
-            flex: 0 0 68%; 
-            min-width: 500px;
-            max-width: 950px;
+            /* 設定相機區塊佔據約 60% 空間 (預留間距設為 58%) */
+            flex: 0 0 58%; 
+            min-width: 450px;
+            max-width: 800px;
         }
         video { 
             width: 100%; 
@@ -40,10 +40,10 @@
             box-shadow: 0 8px 16px rgba(0,0,0,0.1);
         }
         .classes-section {
-            /* 設定分類區塊佔據約 30% 空間 */
-            flex: 0 0 30%; 
+            /* 設定分類區塊佔據約 40% 空間 */
+            flex: 0 0 40%; 
             min-width: 300px;
-            max-width: 400px;
+            max-width: 550px;
             display: flex;
             flex-direction: column;
             gap: 15px;
@@ -87,7 +87,7 @@
     <div class="status" id="status">系統初始化中，載入模型約需數秒...</div>
     
     <div class="main-container">
-        <!-- 左側：攝影機與結果 (約 70%) -->
+        <!-- 左側：攝影機與結果 (約 60%) -->
         <div class="camera-section">
             <video id="webcam" autoplay playsinline muted></video>
             
@@ -101,7 +101,7 @@
             </div>
         </div>
 
-        <!-- 右側：動態分類清單 (約 30%) -->
+        <!-- 右側：動態分類清單 (約 40%) -->
         <div class="classes-section">
             <div id="classes-container"></div>
             <button class="btn-add" id="btn-add-class">+ 新增訓練分類</button>
