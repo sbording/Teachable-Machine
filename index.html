@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Web 影像訓練平台 (60/40 比例版)</title>
+    <title>Web 影像訓練平台 (可刪除類別版)</title>
     <!-- 載入 TensorFlow.js 與預訓練模型 -->
     <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs"></script>
     <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/mobilenet"></script>
@@ -26,7 +26,7 @@
             align-items: flex-start;
         }
         .camera-section {
-            /* 設定相機區塊佔據約 60% 空間 (預留間距設為 58%) */
+            /* 相機區塊約 60% */
             flex: 0 0 58%; 
             min-width: 450px;
             max-width: 800px;
@@ -40,7 +40,7 @@
             box-shadow: 0 8px 16px rgba(0,0,0,0.1);
         }
         .classes-section {
-            /* 設定分類區塊佔據約 40% 空間 */
+            /* 分類區塊約 40% */
             flex: 0 0 40%; 
             min-width: 300px;
             max-width: 550px;
@@ -57,19 +57,37 @@
             display: flex;
             flex-direction: column;
             gap: 10px;
+            position: relative; /* 為了讓刪除按鈕能絕對定位 */
         }
-        .class-header { display: flex; gap: 10px; }
+        .class-header { 
+            display: flex; 
+            gap: 10px; 
+            align-items: center; /* 讓輸入框和刪除按鈕垂直置中 */
+        }
         input[type="text"] {
             flex: 1; padding: 8px; font-size: 16px; border: 1px solid #ced4da; border-radius: 4px;
         }
         button { 
             padding: 10px 15px; font-size: 15px; font-weight: 500; cursor: pointer; border: none; border-radius: 4px; transition: 0.2s;
         }
+        
+        /* 各種按鈕樣式 */
         .btn-train { background: #0d6efd; color: white; }
         .btn-train:active:not(:disabled) { background: #0b5ed7; }
         .btn-train:disabled { background: #6c757d; cursor: not-allowed; }
         .btn-add { background: #198754; color: white; width: 100%; margin-top: 10px; padding: 12px;}
         .btn-add:hover { background: #157347; }
+        
+        /* 刪除按鈕樣式 */
+        .btn-delete {
+            background: #dc3545;
+            color: white;
+            padding: 8px 12px;
+            font-size: 14px;
+            border-radius: 4px;
+        }
+        .btn-delete:hover { background: #c82333; }
+
         .count-badge { background: #e9ecef; padding: 4px 8px; border-radius: 12px; font-size: 13px; color: #495057; align-self: flex-start; }
         
         #result-box {
@@ -135,6 +153,7 @@
                 await setupWebcam();
                 statusElement.style.display = 'none';
                 
+                // 預設建立兩個分類
                 addNewClassCard("類別 1");
                 addNewClassCard("類別 2");
             } catch (error) {
@@ -169,28 +188,75 @@
             const currentId = classIdCounter++;
             const defaultClassName = defaultName || `自訂類別 ${currentId + 1}`;
             
+            // 記錄到資料陣列
             classData.push({ id: currentId, name: defaultClassName, count: 0 });
 
             const card = document.createElement('div');
             card.className = 'class-card';
+            card.id = `class-card-${currentId}`; // 給卡片一個 ID 方便刪除
             card.innerHTML = `
                 <div class="class-header">
                     <input type="text" id="input-name-${currentId}" value="${defaultClassName}" placeholder="輸入分類名稱...">
+                    <button class="btn-delete" id="btn-delete-${currentId}">刪除</button>
                 </div>
                 <button class="btn-train" id="btn-train-${currentId}">長按收集影像</button>
                 <div class="count-badge" id="count-${currentId}">0 張影像</div>
             `;
             classesContainer.appendChild(card);
 
+            // 1. 綁定名稱輸入事件
             const inputEl = document.getElementById(`input-name-${currentId}`);
             inputEl.addEventListener('input', (e) => {
                 const classObj = classData.find(c => c.id === currentId);
                 if (classObj) classObj.name = e.target.value || "未命名";
             });
 
-            const btnEl = document.getElementById(`btn-train-${currentId}`);
+            // 2. 綁定刪除事件
+            const btnDeleteEl = document.getElementById(`btn-delete-${currentId}`);
+            btnDeleteEl.addEventListener('click', () => {
+                deleteClass(currentId);
+            });
+
+            // 3. 綁定收集事件
+            const btnTrainEl = document.getElementById(`btn-train-${currentId}`);
             const countEl = document.getElementById(`count-${currentId}`);
-            setupCollection(btnEl, countEl, currentId);
+            setupCollection(btnTrainEl, countEl, currentId);
+        }
+
+        // 新增：處理刪除分類的邏輯
+        function deleteClass(classId) {
+            // 至少保留一個分類，避免程式錯誤
+            if (classData.length <= 1) {
+                alert("必須至少保留一個分類！");
+                return;
+            }
+
+            // 1. 詢問確認
+            if (confirm("確定要刪除這個分類嗎？已收集的影像特徵將會遺失。")) {
+                
+                // 2. 如果 KNN 分類器中已經有這個類別的資料，將其清除
+                try {
+                    classifier.clearClass(classId);
+                } catch (e) {
+                    // 如果該類別還沒收集任何資料，clearClass 可能會報錯，我們直接忽略
+                    console.log("該類別尚無資料，略過清除步驟");
+                }
+
+                // 3. 從資料陣列中移除
+                classData = classData.filter(c => c.id !== classId);
+
+                // 4. 從畫面上移除該卡片
+                const cardEl = document.getElementById(`class-card-${classId}`);
+                if (cardEl) {
+                    cardEl.remove();
+                }
+
+                // 5. 如果刪除後，分類器裡完全沒有資料了，隱藏預測結果
+                if (classifier.getNumClasses() === 0) {
+                    resultBox.style.display = 'none';
+                    isPredicting = false; // 停止預測迴圈標記
+                }
+            }
         }
 
         function setupCollection(button, countElement, classId) {
@@ -222,6 +288,7 @@
                     button.style.background = '#0d6efd';
                     button.style.color = 'white';
                     
+                    // 只要 KNN 裡有資料，就啟動預測
                     if (classifier.getNumClasses() > 0 && !isPredicting) {
                         isPredicting = true;
                         resultBox.style.display = 'block';
@@ -238,30 +305,40 @@
         }
 
         async function predictLoop() {
-            if (classifier.getNumClasses() > 0) {
-                const img = tf.browser.fromPixels(webcamElement);
-                const activation = mobilenetModule.infer(img, 'conv_preds');
-                
-                try {
-                    const result = await classifier.predictClass(activation);
-                    const predictedClassId = parseInt(result.label);
-                    const classObj = classData.find(c => c.id === predictedClassId);
-                    
-                    if (classObj) {
-                        const confidenceValue = result.confidences[predictedClassId];
-                        const confPercent = (confidenceValue * 100).toFixed(0);
-                        
-                        resultName.innerText = classObj.name;
-                        confidenceText.innerText = `${confPercent}%`;
-                        confidenceBar.style.width = `${confPercent}%`;
-                        confidenceBar.style.background = confidenceValue > 0.7 ? '#20c997' : '#ffc107';
-                    }
-                } catch (err) {
-                    console.error("預測失敗:", err);
-                } finally {
-                    img.dispose();
-                }
+            // 如果沒有在預測狀態，或者分類器空了，就停止迴圈
+            if (!isPredicting || classifier.getNumClasses() === 0) {
+                return;
             }
+
+            const img = tf.browser.fromPixels(webcamElement);
+            const activation = mobilenetModule.infer(img, 'conv_preds');
+            
+            try {
+                const result = await classifier.predictClass(activation);
+                const predictedClassId = parseInt(result.label);
+                const classObj = classData.find(c => c.id === predictedClassId);
+                
+                if (classObj) {
+                    const confidenceValue = result.confidences[predictedClassId];
+                    const confPercent = (confidenceValue * 100).toFixed(0);
+                    
+                    resultName.innerText = classObj.name;
+                    confidenceText.innerText = `${confPercent}%`;
+                    confidenceBar.style.width = `${confPercent}%`;
+                    confidenceBar.style.background = confidenceValue > 0.7 ? '#20c997' : '#ffc107';
+                } else {
+                    // 如果預測出了一個已經被我們刪除的類別 (理論上不該發生，作為保護機制)
+                    resultName.innerText = "未知類別";
+                    confidenceText.innerText = "0%";
+                    confidenceBar.style.width = "0%";
+                }
+            } catch (err) {
+                console.error("預測失敗:", err);
+            } finally {
+                img.dispose();
+            }
+            
+            // 繼續下一幀的預測
             requestAnimationFrame(predictLoop);
         }
 
